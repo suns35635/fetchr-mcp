@@ -19,15 +19,17 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18"
-          cache: "npm"
+
+      - name: 安装 pnpm
+        run: npm install -g pnpm
 
       - name: 安装依赖
         run: |
-          npm init -y
-          npm install fetcher-mcp
+          pnpm init
+          pnpm install fetcher-mcp
 
       - name: 安装 Playwright 浏览器
-        run: npx playwright install chromium
+        run: pnpm exec playwright install chromium
 
       - name: 创建测试脚本
         run: |
@@ -43,7 +45,7 @@ jobs:
 
           // 启动 fetcher-mcp 服务
           console.log('正在启动 fetcher-mcp 服务...');
-          const server = spawn('npx', ['-y', 'fetcher-mcp']);
+          const server = spawn('pnpm', ['exec', 'fetcher-mcp']);
 
           let serverStarted = false;
 
