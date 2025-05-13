@@ -27,6 +27,7 @@ jobs:
         run: |
           pnpm init
           pnpm install fetcher-mcp
+          pnpm install -D @playwright/test
 
       - name: 安装 Playwright 浏览器
         run: pnpm exec playwright install chromium
