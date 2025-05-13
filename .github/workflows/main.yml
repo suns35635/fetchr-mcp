@@ -2,51 +2,51 @@ name: 测试 Fetcher-MCP 抓取小红书和知乎
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # 允许手动触发
+    branches: [main, master]
+  workflow_dispatch: # 允许手动触发
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v3
-      
+
       - name: 设置 Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
-      
+          node-version: "18"
+          cache: "npm"
+
       - name: 安装依赖
         run: |
           npm init -y
           npm install fetcher-mcp
-      
+
       - name: 安装 Playwright 浏览器
         run: npx playwright install chromium
-      
+
       - name: 创建测试脚本
         run: |
           cat > test-sites.js << 'EOF'
           const { spawn } = require('child_process');
           const http = require('http');
           const fs = require('fs');
-          
+
           // 创建结果目录
           if (!fs.existsSync('./results')) {
             fs.mkdirSync('./results');
           }
-          
+
           // 启动 fetcher-mcp 服务
           console.log('正在启动 fetcher-mcp 服务...');
           const server = spawn('npx', ['-y', 'fetcher-mcp']);
-          
+
           let serverStarted = false;
-          
+
           server.stdout.on('data', (data) => {
             const output = data.toString();
             console.log(`服务输出: ${output}`);
@@ -58,11 +58,11 @@ jobs:
               runTests();
             }
           });
-          
+
           server.stderr.on('data', (data) => {
             console.error(`服务错误: ${data}`);
           });
-          
+
           // 测试网站列表
           const sites = [
             {
@@ -76,14 +76,14 @@ jobs:
               expectedContent: ['知乎', '首页', '推荐']
             }
           ];
-          
+
           // 测试结果
           const results = {
             success: [],
             failed: [],
             warnings: []
           };
-          
+
           // 10秒后如果服务未启动则手动开始测试
           setTimeout(() => {
             if (!serverStarted) {
@@ -91,7 +91,7 @@ jobs:
               runTests();
             }
           }, 10000);
-          
+
           async function runTests() {
             console.log('开始测试各网站抓取能力...');
             
@@ -134,7 +134,7 @@ jobs:
               process.exit(1);
             }
           }
-          
+
           // 测试单个网站
           async function testSite(site) {
             return new Promise((resolve, reject) => {
@@ -249,7 +249,7 @@ jobs:
               }, 60000);
             });
           }
-          
+
           // 测试并行抓取
           async function testParallelFetch() {
             return new Promise((resolve, reject) => {
@@ -335,7 +335,7 @@ jobs:
               }, 120000);
             });
           }
-          
+
           // 3分钟后强制退出
           setTimeout(() => {
             console.error('❌ 整体测试超时，强制终止');
@@ -343,12 +343,12 @@ jobs:
             process.exit(1);
           }, 180000);
           EOF
-      
+
       - name: 运行测试
         run: node test-sites.js
-      
+
       - name: 上传测试结果
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: fetcher-mcp-test-results
           path: results/
