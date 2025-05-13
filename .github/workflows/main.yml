@@ -25,7 +25,13 @@ jobs:
 
       - name: 安装依赖
         run: |
-          pnpm init -y
+          # 手动创建package.json而不使用init命令
+          echo '{
+            "name": "fetcher-mcp-test",
+            "version": "1.0.0",
+            "description": "测试fetcher-mcp抓取功能",
+            "private": true
+          }' > package.json
           pnpm install fetcher-mcp
 
       - name: 安装 Playwright 浏览器
