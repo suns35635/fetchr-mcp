@@ -25,23 +25,23 @@ jobs:
 
       - name: 安装依赖
         run: |
-          pnpm init
+          pnpm init -y
           pnpm install fetcher-mcp
-          pnpm install -D @playwright/test
 
       - name: 安装 Playwright 浏览器
-        run: pnpm exec playwright install chromium
+        run: npx playwright install chromium
 
       - name: 创建测试脚本
         run: |
-          cat > test-sites.js << 'EOF'
+          mkdir -p results
+          cat > test-fetcher.js << 'EOF'
           const { spawn } = require('child_process');
           const http = require('http');
           const fs = require('fs');
 
           // 创建结果目录
           if (!fs.existsSync('./results')) {
-            fs.mkdirSync('./results');
+            fs.mkdirSync('./results', { recursive: true });
           }
 
           // 启动 fetcher-mcp 服务
@@ -87,16 +87,50 @@ jobs:
             warnings: []
           };
 
-          // 10秒后如果服务未启动则手动开始测试
+          // 等待服务启动的时间延长到30秒
           setTimeout(() => {
             if (!serverStarted) {
-              console.log('服务未检测到启动消息，尝试开始测试...');
-              runTests();
+              console.log('服务未检测到启动消息，但将尝试开始测试...');
+              // 先验证服务是否实际在运行
+              checkServiceRunning().then(running => {
+                if (running) {
+                  console.log('服务似乎已在运行，开始测试...');
+                  runTests();
+                } else {
+                  console.error('服务似乎未在运行，无法开始测试');
+                  process.exit(1);
+                }
+              });
             }
-          }, 10000);
+          }, 30000); // 增加到30秒
+
+          // 检查服务是否在运行
+          function checkServiceRunning() {
+            return new Promise(resolve => {
+              const options = {
+                hostname: '127.0.0.1',
+                port: 3002,
+                path: '/',
+                method: 'GET'
+              };
+
+              const req = http.request(options, () => {
+                resolve(true);
+              });
+
+              req.on('error', () => {
+                resolve(false);
+              });
+
+              req.end();
+            });
+          }
 
           async function runTests() {
             console.log('开始测试各网站抓取能力...');
+            
+            // 再等待5秒确保服务完全就绪
+            await new Promise(resolve => setTimeout(resolve, 5000));
             
             // 逐个测试网站
             for (const site of sites) {
@@ -138,7 +172,7 @@ jobs:
             }
           }
 
-          // 测试单个网站
+          // 测试单个网站，使用fetcher-mcp的fetch_url功能
           async function testSite(site) {
             return new Promise((resolve, reject) => {
               // 准备请求数据
@@ -156,7 +190,7 @@ jobs:
               });
               
               const options = {
-                hostname: 'localhost',
+                hostname: '127.0.0.1',
                 port: 3002,
                 path: '/',
                 method: 'POST',
@@ -253,7 +287,7 @@ jobs:
             });
           }
 
-          // 测试并行抓取
+          // 测试并行抓取，使用fetcher-mcp的fetch_urls功能
           async function testParallelFetch() {
             return new Promise((resolve, reject) => {
               // 准备并行请求
@@ -273,7 +307,7 @@ jobs:
               });
               
               const options = {
-                hostname: 'localhost',
+                hostname: '127.0.0.1',
                 port: 3002,
                 path: '/',
                 method: 'POST',
@@ -348,7 +382,7 @@ jobs:
           EOF
 
       - name: 运行测试
-        run: node test-sites.js
+        run: node test-fetcher.js
 
       - name: 上传测试结果
         uses: actions/upload-artifact@v4
